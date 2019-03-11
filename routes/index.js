@@ -1,16 +1,26 @@
 const express = require('express')
-const exphbs = require('express-handlebars')
-
 const router = express.Router()
-const passport = require('passport')
+const mongoose = require('mongoose')
+const Story = mongoose.model('stories')
+const {ensureAuthenticated, ensureGuest} = require('../helpers/auth')
 
 
-router.get('/', (req,res) => {
+router.get('/', ensureGuest, (req,res) => {
     res.render('index/welcome')
 })
 
-router.get('/dashboard', (req,res) => {
-    res.send('its working')
+router.get('/dashboard',ensureAuthenticated, (req,res) => {
+    // res.render('index/dashboard')
+    Story.find({user: req.user.id})
+        .then(stories => {
+            res.render('index/dashboard', {
+                stories
+            })
+        })
+})
+
+router.get('/about', (req,res) => {
+    res.render('index/about')
 })
 
 
