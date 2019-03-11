@@ -20,7 +20,15 @@ app.get('/', (req,res) => {
 })
 
 app.get('/googleb6962b232bd20e12.html', (req,res) => {
-    res.sendFile('./googleb6962b232bd20e12.html')
+
+    res.sendFile('googleb6962b232bd20e12.html', {
+        root: __dirname,
+        dotfiles: 'deny',
+        headers: {
+            'x-timestamp': Date.now(),
+            'x-sent': true
+        }
+    })
 })
 
 //Use routes
