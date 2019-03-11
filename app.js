@@ -19,6 +19,9 @@ app.get('/', (req,res) => {
     res.send('it works')
 })
 
+app.get('/googleb6962b232bd20e12.html', (req,res) => {
+    res.sendFile('./googleb6962b232bd20e12.html')
+})
 
 //Use routes
 app.use('/auth', auth)
