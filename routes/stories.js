@@ -6,53 +6,45 @@ const router = express.Router();
 const {ensureAuthenticated, ensureGuest} = require('../helpers/auth')
 
 // Stories Index
-router.get('/', (req, res) => {
-    Story.find({
-        status: 'public'
-    })
+router.get('/', async (req, res) => {
+    const stories = await Story.find({status: 'public'})
         .populate('user')
-        .then(stories => {
-            res.render('stories/index', {
-                stories
-            });
-        })
+    res.render('stories/index', {stories, user: null});
 });
 
 //Show Single Story
-router.get('/show/:id', (req, res) => {
-    Story.findOne({_id: req.params.id})
+router.get('/show/:id', async (req, res) => {
+    const story = await Story.findOne({_id: req.params.id})
         .sort({date: 'desc'})
         .populate('user')
         .populate('comments.commentUser')
-        .then(story => {
-            if (story.status === 'public') {
-                res.render('stories/show', {story})
-            } else {
-                if (req.user && req.user.id == story.user._id) {
-                    res.render('stories/show', {story})
-                } else {
-                    res.redirect('/stories')
-                }
-            }
-        })
+    if (story.status === 'public') {
+        res.render('stories/show', {story})
+    } else {
+        if (req.user && req.user.id == story.user._id) {
+            res.render('stories/show', {story})
+        } else {
+            res.redirect('/stories')
+        }
+    }
 })
 
 //List stories from a user
-router.get('/user/:userId', (req, res) => {
-    Story.find({user: req.params.userId, status: 'public'})
+router.get('/user/:userId', async (req, res) => {
+    const user = await User.findOne({_id: req.params.userId})
+    let stories = await Story
+        .find({user: req.params.userId, status: 'public'})
         .populate('user')
-        .then(stories => {
-            res.render('stories/index', {stories})
-        })
+    stories.forEach(story => story.isUserStory = true)
+    res.render('stories/index', {stories, user})
+
 })
 
 //Logged in users stories
-router.get('/my',ensureAuthenticated, (req, res) => {
-    Story.find({user: req.user.id, status: 'public'})
+router.get('/my',ensureAuthenticated, async (req, res) => {
+    const stories = await Story.find({user: req.user.id, status: 'public'})
         .populate('user')
-        .then(stories => {
-            res.render('stories/index', {stories})
-        })
+    res.render('stories/index', {stories})
 })
 
 // Add Story Form
@@ -61,21 +53,16 @@ router.get('/add', ensureAuthenticated, (req, res) => {
 });
 
 // Edit Story Form
-router.get('/edit/:id', ensureAuthenticated, (req, res) => {
-    Story.findOne({
-        _id: req.params.id
-    })
-        .then(story => {
-            if (story.user != req.user.id) {
-             res.redirect('/stories')
-            } else {
-                res.render('stories/edit', {story});
-            }
-        })
+router.get('/edit/:id', ensureAuthenticated, async (req, res) => {
+    const story = await Story.findOne({_id: req.params.id})
+    story.user != req.user.id?
+        res.redirect('/stories')
+        :
+        res.render('stories/edit', {story});
 });
 
 //process add story
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
     let {allowComments} = req.body
     const newStory = {
         title: req.body.title,
@@ -85,55 +72,42 @@ router.post('/', (req, res) => {
         user: req.user.id,
     }
 
-    new Story(newStory)
+    const story = await new Story(newStory)
         .save()
-        .then(story => {
-            res.redirect(`/stories/show/${story.id}`)
-        })
+    res.redirect(`/stories/show/${story.id}`)
 })
+
 //Edit Form Process
-router.put('/:id', (req, res) => {
-    Story.findOne({
+router.put('/:id', async (req, res) => {
+    let story = await Story.findOne({
         _id: req.params.id
     })
-        .then(story => {
-            let {allowComments} = req.body
-            story.title = req.body.title
-            story.body = req.body.body
-            story.status = req.body.status
-            story.allowComments = allowComments
-            story.save()
-                .then(story => {
-                    res.redirect('/dashboard')
-                })
-        })
+
+    let {allowComments} = req.body
+    story.title = req.body.title
+    story.body = req.body.body
+    story.status = req.body.status
+    story.allowComments = allowComments
+    await story.save()
+    res.redirect('/dashboard')
 })
 
 //DELETE Story
-router.delete('/:id', (req, res) => {
-    Story.remove({_id: req.params.id})
-        .then(() => {
-            res.redirect('/dashboard')
-        })
+router.delete('/:id', async (req, res) => {
+    const story = await Story.remove({_id: req.params.id})
+    res.redirect('/dashboard')
 })
 
 //Add Comment
-router.post('/comment/:id', (req, res) => {
-    Story.findOne({
-        _id: req.params.id
-    })
-        .then(story => {
-            const newComment = {
-                commentBody: req.body.commentBody,
-                commentUser: req.user.id
-            }
-
-            story.comments.unshift(newComment)
-            story.save()
-                .then(story => {
-                    res.redirect(`/stories/show/${story.id}`)
-                })
-        })
+router.post('/comment/:id', async (req, res) => {
+    const story = await Story.findOne({_id: req.params.id})
+    const newComment = {
+        commentBody: req.body.commentBody,
+        commentUser: req.user.id
+    }
+    story.comments.unshift(newComment)
+    await story.save()
+    res.redirect(`/stories/show/${story.id}`)
 })
 
 module.exports = router;
